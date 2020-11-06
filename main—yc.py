@@ -41,7 +41,6 @@ import requests
 import json
 import base64
 import re
-from bottle import route, run, post, request
 
 JETBRAINS_API_TOKEN = ""
 REQUEST_HEADERS = {
@@ -98,27 +97,7 @@ def sendMessage(channelId, message):
     return json.loads(response.text)
 
 
-@post("/")
-def doPost():
-    global CHAT_ID
-    global MENTION_USER_ID
-    jsonedData = json.load(request.body)
-
-    message = re.sub(r"(\n)|(<br>)", r"\n>", jsonedData['text'])
-
-    if (MENTION_USER_ID):
-        message += "\n\n@" + MENTION_USER_ID
-
-    sendMessage(CHAT_ID, message)
-    return json.dumps({"result": "ok"})
-
-
-@route("/")
-def doGet():
-    return json.dumps({"result": "ok"})
-
-
-def main():
+def setInfo():
     global JETBRAINS_API_TOKEN
     JETBRAINS_API_TOKEN = getAccessToken()
 
@@ -130,7 +109,28 @@ def main():
     if (CHAT_ID == ""):
         CHAT_ID = getChannelsInfo(CHAT_NAME)['data'][0]['channelId']
 
-    run(host='localhost', port=6600, debug=True)
+
+#############################################
+#                 Точка входа               #
+#############################################
 
 
-main()
+def doPost(event, context):
+    setInfo()
+
+    global CHAT_ID
+    global MENTION_USER_ID
+    base64_message = event['body']
+    base64_bytes = base64_message.encode('utf-8')
+    message_bytes = base64.b64decode(base64_bytes)
+    message = message_bytes.decode('utf-8')
+
+    jsonedData = json.loads(message)
+
+    message = re.sub(r"(\n)|(<br>)", r"\n>", jsonedData['text'])
+
+    if (MENTION_USER_ID):
+        message += "\n\n@" + MENTION_USER_ID
+
+    sendMessage(CHAT_ID, message)
+    return json.dumps({"result": "ok"})
